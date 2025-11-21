@@ -259,7 +259,17 @@ app.get('/health', (_req, res) => {
     service: 'glitch-realtime',
     port: PORT,
     websocket: 'active',
-    type: 'native-websocket'
+    type: 'native-websocket',
+    connections: wss.clients.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Keep-alive endpoint to prevent Railway from sleeping
+app.get('/ping', (_req, res) => {
+  res.json({ 
+    status: 'pong',
+    timestamp: new Date().toISOString()
   });
 });
 
