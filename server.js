@@ -265,6 +265,14 @@ sockServer.on('connection', (conn) => {
       headers['Access-Control-Allow-Credentials'] = 'false';
       headers['Access-Control-Allow-Methods'] = ALLOWED_METHODS;
       headers['Access-Control-Allow-Headers'] = ALLOWED_HEADERS;
+      
+      // CRITICAL: Ensure WebSocket upgrade headers are set for Railway
+      if (statusCode === 101 || conn.headers?.upgrade === 'websocket') {
+        headers['Upgrade'] = 'websocket';
+        headers['Connection'] = 'Upgrade';
+        console.log('WebSocket upgrade headers set for Railway');
+      }
+      
       if (statusMessage) {
         return originalWriteHead.call(this, statusCode, statusMessage, headers);
       }
