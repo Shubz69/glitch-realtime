@@ -6,9 +6,9 @@ const { randomUUID } = require('crypto');
 const app = express();
 const server = http.createServer(app);
 
-const ALLOWED_ORIGIN = process.env.CORS_ALLOW_ORIGIN || 'https://www.theglitch.world';
+const ALLOWED_ORIGIN = process.env.CORS_ALLOW_ORIGIN || '*'; // Allow all origins for Railway
 const ALLOWED_METHODS = 'GET,POST,OPTIONS';
-const ALLOWED_HEADERS = 'Content-Type, Authorization';
+const ALLOWED_HEADERS = 'Content-Type, Authorization, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol';
 
 const applyCors = (_req, res) => {
   res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
@@ -19,6 +19,13 @@ const applyCors = (_req, res) => {
 
 app.use((req, res, next) => {
   applyCors(req, res);
+  
+  // Handle WebSocket upgrade requests - Railway proxy needs these headers
+  if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
+    res.setHeader('Upgrade', 'websocket');
+    res.setHeader('Connection', 'Upgrade');
+  }
+  
   if (req.method === 'OPTIONS') {
     res.sendStatus(204);
     return;
@@ -31,14 +38,16 @@ app.get('/', (_req, res) => res.send('Realtime server running'));
 const sockServer = sockjs.createServer({
   prefix: '/ws',
   log: (severity, entry) => {
-    // Log errors and warnings for debugging
-    if (severity === 'error' || severity === 'warning') {
-      console.log(`SockJS ${severity}:`, entry);
-    }
+    // Log all SockJS activity for debugging Railway issues
+    console.log(`SockJS ${severity}:`, entry);
   },
   heartbeat_delay: 25000,
-  // Ensure WebSocket transport is preferred
-  transports: ['websocket', 'xhr-streaming', 'xhr-polling']
+  // Ensure WebSocket transport is preferred and works with Railway proxy
+  transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+  // Disable JSESSIONID for Railway compatibility
+  jsessionid: false,
+  // SockJS options for Railway proxy compatibility
+  sockjs_url: undefined // Let SockJS auto-detect
 });
 
 const subscriptionsByConn = new Map();
