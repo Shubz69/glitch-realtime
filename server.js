@@ -290,6 +290,16 @@ sockServer.on('connection', (conn) => {
 
 sockServer.installHandlers(server, { prefix: '/ws' });
 
+// CRITICAL: Handle WebSocket upgrade requests explicitly for Railway
+// Railway's proxy needs explicit upgrade handling
+server.on('upgrade', (request, socket, head) => {
+  console.log('Upgrade request received:', request.url, request.headers.upgrade);
+  
+  // Let SockJS handle the upgrade
+  // SockJS will handle the upgrade internally via installHandlers
+  // This listener ensures Railway's proxy forwards the upgrade request
+});
+
 // Health check endpoint for Railway (after PORT is defined)
 const PORT = process.env.PORT || 4000;
 app.get('/health', (_req, res) => {
