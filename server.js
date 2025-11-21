@@ -30,8 +30,15 @@ app.get('/', (_req, res) => res.send('Realtime server running'));
 
 const sockServer = sockjs.createServer({
   prefix: '/ws',
-  log: () => {},
-  heartbeat_delay: 25000
+  log: (severity, entry) => {
+    // Log errors and warnings for debugging
+    if (severity === 'error' || severity === 'warning') {
+      console.log(`SockJS ${severity}:`, entry);
+    }
+  },
+  heartbeat_delay: 25000,
+  // Ensure WebSocket transport is preferred
+  transports: ['websocket', 'xhr-streaming', 'xhr-polling']
 });
 
 const subscriptionsByConn = new Map();
@@ -266,7 +273,18 @@ sockServer.on('connection', (conn) => {
 
 sockServer.installHandlers(server, { prefix: '/ws' });
 
+// Health check endpoint for Railway (after PORT is defined)
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => {
+app.get('/health', (_req, res) => {
+  res.json({ 
+    status: 'ok', 
+    service: 'glitch-realtime',
+    port: PORT,
+    websocket: 'active'
+  });
+});
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Realtime server listening on ${PORT}`);
+  console.log(`WebSocket endpoint: ws://0.0.0.0:${PORT}/ws`);
 });
